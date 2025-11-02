@@ -4,8 +4,11 @@ project(pairipcore)
 
 
 add_library(pairipcore SHARED
-        src/library.c
+        src/library.cpp
+        src/armhook.c
+        src/inlinehook.c
         src/mem.c
+        src/memscan.c
         src/proc.c
 )
 
