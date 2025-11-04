@@ -25,31 +25,35 @@ struct Data
     double a11 = 0.0;
 };
 
+
+static Data* defaultData = new Data{};
+
 static void (*original_funcz)(void *a1, Data* scopedData, void* threadId);
+
 NOEXPORT void hooked_funcz(void *a1, Data* scopedData, void* threadId) {
+    defaultData->a1 = "Minecraft";
+    defaultData->a2 = 0;
+    defaultData->a3 = 0;
+    defaultData->a5 = 0;
+    defaultData->a7 = 0;
 
-    scopedData->a1 = "Minecraft";
-    scopedData->a2 = 0;
-    scopedData->a3 = 0;
-    scopedData->a5 = 0;
-    scopedData->a7 = 0;
+    defaultData->a4 = nullptr;
+    defaultData->a6.clear();
 
-    scopedData->a4 = nullptr;
-    scopedData->a6.clear();
+    defaultData->a8 = 0.0;
+    defaultData->a9 = 0.0;
+    defaultData->a10 = 0.0;
+    defaultData->a11 = 0.0;
 
-    scopedData->a8 = 0.0;
-    scopedData->a9 = 0.0;
-    scopedData->a10 = 0.0;
-    scopedData->a11 = 0.0;
 
-    original_funcz(a1, scopedData, threadId);
+    original_funcz(a1, defaultData, threadId);
 }
 
 extern "C" NOEXPORT void patch_libs() {
     void* dlhandle = dlopen("libmaesdk.so", RTLD_NOLOAD);
     if(!dlhandle) return;
     void *libmae_fun = dlsym(dlhandle,
-        "_ZN9Microsoft12Applications6Events19TelemetrySystemBase5startEv");
+                             "_ZN9Microsoft12Applications6Events19TelemetrySystemBase5startEv");
     if(libmae_fun) {
 #if defined(__x86_64__) || defined(__amd64__)
         unsigned char retop = 0xC3;
@@ -71,7 +75,6 @@ extern "C" NOEXPORT void patch_libs() {
     if(!scanner) return;
     void *funcz = get_sigscan_result(scanner);
     if(funcz != (void*) -1) {
-        // hook function
         hook_addr(funcz, (void*) hooked_funcz,
             (void**) &original_funcz, GPWN_AARCH64_MICROHOOK);
     }
@@ -85,5 +88,5 @@ extern "C" jint JNI_OnLoad(JavaVM *vm, void *reserved) {
 }
 
 extern "C" void ExecuteProgram() {
-    return;
+
 }
