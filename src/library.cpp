@@ -7,7 +7,6 @@
 #include <vector>
 #include <dlfcn.h>
 #include <jni.h>
-
 #define NOEXPORT __attribute__((visibility("hidden")))
 
 struct Data
@@ -25,9 +24,7 @@ struct Data
     double a11 = 0.0;
 };
 
-
 static Data* defaultData = new Data{};
-
 static void (*original_funcz)(void *a1, Data* scopedData, void* threadId);
 
 NOEXPORT void hooked_funcz(void *a1, Data* scopedData, void* threadId) {
@@ -36,16 +33,12 @@ NOEXPORT void hooked_funcz(void *a1, Data* scopedData, void* threadId) {
     defaultData->a3 = 0;
     defaultData->a5 = 0;
     defaultData->a7 = 0;
-
     defaultData->a4 = nullptr;
     defaultData->a6.clear();
-
     defaultData->a8 = 0.0;
     defaultData->a9 = 0.0;
     defaultData->a10 = 0.0;
     defaultData->a11 = 0.0;
-
-
     original_funcz(a1, defaultData, threadId);
 }
 
@@ -67,16 +60,42 @@ extern "C" NOEXPORT void patch_libs() {
         write_mem(libmae_fun, &retop, sizeof(retop));
     }
     dlclose(dlhandle);
+
 #ifdef __aarch64__
+
     sigscan_handle *scanner = sigscan_setup(
-        "?? ?? ?? D1 ?? ?? ?? A9 ?? ?? ?? A9 ?? ?? ?? A9 ?? ?? ?? A9"
-        " ?? ?? ?? A9 ?? ?? ?? A9 ?? ?? ?? 91 ?? ?? ?? D5 ?? ?? ?? F0"
-        " F4 03 02 AA", "libminecraftpe.so", GPWN_SIGSCAN_XMEM);
+        "?? ?? ?? 96 ?? ?? ?? A9 ?? ?? ?? A9 ?? ?? ?? 94",
+        "libminecraftpe.so", GPWN_SIGSCAN_XMEM);
+
+
+    if(!scanner) {
+        scanner = sigscan_setup(
+            "?? ?? ?? 97 ?? ?? ?? F9 ?? ?? ?? BD ?? ?? ?? 94 E0 03 00 91",
+            "libminecraftpe.so", GPWN_SIGSCAN_XMEM);
+    }
+
     if(!scanner) return;
-    void *funcz = get_sigscan_result(scanner);
-    if(funcz != (void*) -1) {
-        hook_addr(funcz, (void*) hooked_funcz,
-            (void**) &original_funcz, GPWN_AARCH64_MICROHOOK);
+
+    void *code_addr = get_sigscan_result(scanner);
+    if(code_addr != (void*) -1) {
+
+        const uint32_t bl_insn = *reinterpret_cast<const uint32_t*>(code_addr);
+
+
+        if ((bl_insn & 0xFC000000) == 0x94000000) {
+            const uint32_t imm26 = bl_insn & 0x03FFFFFF;
+            int32_t signed_imm26 = static_cast<int32_t>(imm26);
+
+
+            if (signed_imm26 & (1 << 25)) {
+                signed_imm26 -= (1 << 26);
+            }
+
+            uintptr_t funcz = reinterpret_cast<uintptr_t>(code_addr) + (signed_imm26 << 2);
+
+            hook_addr((void*)funcz, (void*) hooked_funcz,
+                (void**) &original_funcz, GPWN_AARCH64_MICROHOOK);
+        }
     }
     sigscan_cleanup(scanner);
 #endif
@@ -88,5 +107,4 @@ extern "C" jint JNI_OnLoad(JavaVM *vm, void *reserved) {
 }
 
 extern "C" void ExecuteProgram() {
-
 }
